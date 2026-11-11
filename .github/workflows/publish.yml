@@ -1,0 +1,46 @@
+name: 인스타 자동 업로드
+
+on:
+  workflow_dispatch:
+    inputs:
+      folder:
+        description: "올릴 폴더 이름 (예: posts/2026-10-01)"
+        required: true
+  schedule:
+    - cron: "0 0 * * *"   # 매일 오전 9시(한국 시간). 실제 실행은 늦어질 수 있어요
+
+permissions:
+  contents: write   # 올린 폴더에 posted.txt를 남기기 위해 필요해요
+
+concurrency: publish   # 두 번 겹쳐 돌지 않게 한 번에 하나씩만 실행해요
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pip install requests
+      - name: 발행
+        env:
+          IG_USER_ID: ${{ secrets.IG_USER_ID }}
+          IG_ACCESS_TOKEN: ${{ secrets.IG_ACCESS_TOKEN }}
+          IMG_BASE: ${{ secrets.IMG_BASE }}
+          FOLDER: ${{ inputs.folder }}
+        run: |
+          if [ -n "$FOLDER" ]; then
+            # 버튼으로 직접 실행: 문제가 있으면 빨간 X로 알려 줘요
+            if [ ! -d "$FOLDER" ]; then echo "오류: $FOLDER 폴더가 없어요. 폴더 이름을 확인하세요"; exit 1; fi
+            if [ -f "$FOLDER/posted.txt" ]; then echo "오류: $FOLDER는 이미 올린 폴더예요. 다시 올리려면 posted.txt를 지우세요"; exit 1; fi
+          else
+            # 아침 예약 실행: 오늘 날짜 폴더가 없거나 이미 올렸으면 조용히 쉬어요
+            FOLDER="posts/$(TZ=Asia/Seoul date +%F)"
+            if [ ! -d "$FOLDER" ] || [ -f "$FOLDER/posted.txt" ]; then echo "오늘($FOLDER)은 올릴 게 없어서 쉬어요"; exit 0; fi
+          fi
+          python publish.py "$FOLDER"
+      - name: 올린 표시 저장
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@users.noreply.github.com"
+          git add -A
+          git commit -m "올린 표시(posted.txt) 저장" || exit 0
+          git push
