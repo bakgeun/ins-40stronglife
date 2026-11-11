@@ -1,9 +1,11 @@
 # publish.py — 폴더 안의 사진(1~10장)과 caption.txt를 인스타에 올립니다
 import os, sys, glob, time, urllib.parse, requests
 
-API = "https://graph.instagram.com/v21.0"
-USER = os.environ["IG_USER_ID"]
-TOKEN = os.environ["IG_ACCESS_TOKEN"]
+USER = os.environ["IG_USER_ID"].strip()
+TOKEN = os.environ["IG_ACCESS_TOKEN"].strip()
+# EAA로 시작하는 토큰(통합 로그인·Facebook 로그인)은 graph.facebook.com,
+# IGAA로 시작하는 토큰(Instagram 로그인)은 graph.instagram.com 으로 보내요
+API = "https://graph.facebook.com/v21.0" if TOKEN.startswith("EAA") else "https://graph.instagram.com/v21.0"
 BASE = os.environ["IMG_BASE"].rstrip("/")
 folder = sys.argv[1].strip("/")
 
