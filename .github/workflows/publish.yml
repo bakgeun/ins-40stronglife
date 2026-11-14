@@ -31,13 +31,20 @@ jobs:
             # 버튼으로 직접 실행: 문제가 있으면 빨간 X로 알려 줘요
             if [ ! -d "$FOLDER" ]; then echo "오류: $FOLDER 폴더가 없어요. 폴더 이름을 확인하세요"; exit 1; fi
             if [ -f "$FOLDER/posted.txt" ]; then echo "오류: $FOLDER는 이미 올린 폴더예요. 다시 올리려면 posted.txt를 지우세요"; exit 1; fi
+            python publish.py "$FOLDER"
           else
-            # 아침 예약 실행: 오늘 날짜 폴더가 없거나 이미 올렸으면 조용히 쉬어요
-            FOLDER="posts/$(TZ=Asia/Seoul date +%F)"
-            if [ ! -d "$FOLDER" ] || [ -f "$FOLDER/posted.txt" ]; then echo "오늘($FOLDER)은 올릴 게 없어서 쉬어요"; exit 0; fi
+            # 아침 예약 실행: 오늘 날짜의 카드뉴스와 릴스를 차례로 올려요. 이미 올린 건 건너뛰어요
+            TODAY="$(TZ=Asia/Seoul date +%F)"
+            FAIL=0
+            for F in "posts/$TODAY" "posts/$TODAY-card" "posts/$TODAY-reel"; do
+              if [ ! -d "$F" ] || [ -f "$F/posted.txt" ]; then continue; fi
+              echo "올려요: $F"
+              python publish.py "$F" || FAIL=1
+            done
+            exit $FAIL
           fi
-          python publish.py "$FOLDER"
       - name: 올린 표시 저장
+        if: always()   # 하나가 실패해도 성공한 건 표시를 남겨서 두 번 올라가지 않게 해요
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@users.noreply.github.com"
